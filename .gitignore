@@ -1,0 +1,16 @@
+## Carpetas de compilación de .NET (¡Las más pesadas!)
+bin/
+obj/
+
+## Configuraciones locales de VS Code
+.vscode/
+
+## Archivos de usuario y temporales
+*.user
+*.userosscache
+*.suo
+*.sln.docstates
+
+## Archivos del sistema operativo
+.DS_Store
+Thumbs.db
