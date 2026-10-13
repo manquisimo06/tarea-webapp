@@ -1,9 +1,31 @@
 INFORME DE REVISION ZAP
 =======================
 
-Reporte revisado: C:\Users\Kitsune\Documents\Informe_ZAP_Antes.html
+Reporte inicial: Informe_ZAP_Antes.html
+Reporte posterior: Informe_ZAP_Despues.html
 Sitio escaneado por ZAP: http://localhost:5253
-Resumen del reporte original: 4 alertas de riesgo medio, 1 de riesgo bajo y 3 informativas.
+Antes: 4 alertas de riesgo medio, 1 de riesgo bajo y 3 informativas.
+Despues: 0 altas, 0 medias, 0 bajas y 3 informativas, segun el resumen por riesgo del segundo reporte.
+
+TABLA COMPARATIVA: ANTES Y DESPUES
+---------------------------------
+
++----+-----------------------------------------------+------------------+----------------+-----------------------------------------------+
+| #  | Hallazgo                                      | Antes (ZAP)      | Clasificacion  | Despues (ZAP)                                 |
++----+-----------------------------------------------+------------------+----------------+-----------------------------------------------+
+| 1  | CSP: Directiva Wildcard                       | Medio (1)        | CORREGIDA      | Ausente; CSP restringida y presente.          |
+| 2  | CSP: Directiva sin fallback (form-action)     | Medio (1)        | CORREGIDA      | Ausente; form-action 'self' esta presente.     |
+| 3  | CSP: script-src unsafe-inline                 | Medio (1)        | CORREGIDA      | Ausente; nonce coincide y no hay unsafe-inline.|
+| 4  | CSP: style-src unsafe-inline                  | Medio (1)        | CORREGIDA      | Ausente; sin estilos inline en HTML.          |
+| 5  | Falta X-Content-Type-Options                  | Bajo (1)         | CORREGIDA      | Ausente; nosniff incluido en respuestas.      |
+| 6  | Aplicacion Web Moderna                        | Informativo      | INFORMATIVA    | Persiste como observacion, no vulnerabilidad. |
+| 7  | Comentarios sospechosos                       | Informativo      | INFORMATIVA    | Persiste; comentario generico no sensible.    |
+| 8  | Respuesta de Gestion de Sesion                | Informativo      | INFORMATIVA    | Persiste; cookie antifalsificacion esperada.  |
++----+-----------------------------------------------+------------------+----------------+-----------------------------------------------+
+
+Resultado comparativo: el resumen por riesgo paso de 4 medias, 1 baja y 3 informativas a 0 altas, 0 medias, 0 bajas y 3 informativas. No quedan vulnerabilidades accionables en el segundo analisis. No se clasifico ninguna como mitigada, no corregida o falso positivo: las cinco accionables estan ausentes y las tres restantes son informativas.
+
+Nota de consistencia: en Informe_ZAP_Despues.html, el resumen y la seccion Alerts indican 3 alertas informativas. La tabla Alert Counts by Alert Type muestra 2, 1 y 2 (suma 5), aunque su pie vuelve a indicar total 3. Se conserva el total del resumen por riesgo y se documenta esta discrepancia del reporte original; conviene mencionarla al entregar.
 
 CORREGIDO
 ---------
@@ -47,6 +69,8 @@ VERIFICACION Y PENDIENTES
 - Se verifico que el nonce de script-src coincide con el atributo nonce del ImportMap en la misma respuesta.
 - Se verificaron form-action, nosniff, ausencia de unsafe-inline y ausencia de atributos style y onclick inline en el HTML servido.
 - La lista de Clientes carga y el boton Nuevo abre el formulario bajo la CSP.
-- No se ejecuto un nuevo escaneo completo de ZAP; los resultados deben confirmarse con un nuevo reporte despues de reiniciar dotnet watch.
-- dotnet watch utiliza un WebSocket auxiliar en un puerto local dinamico para Browser Refresh. La CSP estricta no autoriza puertos wildcard, por lo que ese auxiliar puede registrar un bloqueo en la consola; la interactividad de Blazor se comprobo funcional. No se amplio la politica a localhost:* para no reintroducir una fuente wildcard.
+- El segundo escaneo ZAP se ejecuto y confirma 0 alertas altas, medias o bajas; solo permanecen alertas informativas.
+- Las alertas que persisten son observaciones de tecnologia, un comentario generico de reconexion y la cookie antifalsificacion de ASP.NET Core. No indican una vulnerabilidad explotable ni requieren una modificacion adicional.
+- El segundo reporte registra 1 advertencia en Insights y 1 % de fallos de red. No es una alerta de vulnerabilidad; revisar zap.log solo si se necesita diagnosticar cobertura o solicitudes fallidas.
+- La tabla por tipo del segundo reporte presenta conteos 2, 1 y 2, pero el resumen por riesgo, la seccion Alerts y el pie de la tabla indican 3. La discrepancia se documento y debe aclararse en la entrega.
 - El escaneo original fue HTTP en localhost. Para una evaluacion de despliegue, repetirlo tambien contra el entorno HTTPS de produccion.
