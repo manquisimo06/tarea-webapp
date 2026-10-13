@@ -1,24 +1,22 @@
 using WebEmpresa.Components;
+using System.Security.Cryptography;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Agregar servicios Razor Components
+// Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+builder.Services.AddHttpContextAccessor();
 
-// HttpClient para comunicarse con la API
-builder.Services.AddHttpClient("ApiEmpresa", client =>
+// === HttpClient apuntando a tu API ===
+builder.Services.AddScoped(sp => new HttpClient
 {
-    client.BaseAddress = new Uri("https://localhost:5125/");
+    BaseAddress = new Uri("https://localhost:7226/")
 });
-
-// También dejamos HttpClient disponible mediante inyección directa
-builder.Services.AddScoped(sp =>
-    sp.GetRequiredService<IHttpClientFactory>()
-      .CreateClient("ApiEmpresa"));
 
 var app = builder.Build();
 
+// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
@@ -26,9 +24,41 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.Use(async (context, next) =>
+{
+    var nonce = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16));
+    context.Items["CspNonce"] = nonce;
 
-app.UseStaticFiles();
+    var webSocketScheme = context.Request.IsHttps ? "wss" : "ws";
+    var webSocketSource = $"{webSocketScheme}://{context.Request.Host}";
+
+    context.Response.OnStarting(() =>
+    {
+        context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+        context.Response.Headers["Content-Security-Policy"] = string.Join("; ",
+            "default-src 'self'",
+            "base-uri 'self'",
+            "object-src 'none'",
+            "frame-ancestors 'self'",
+            "form-action 'self'",
+            $"script-src 'self' 'nonce-{nonce}'",
+            "script-src-attr 'none'",
+            "style-src 'self'",
+            "style-src-attr 'none'",
+            "img-src 'self' data:",
+            "font-src 'self'",
+            $"connect-src 'self' {webSocketSource}",
+            "frame-src 'self'",
+            "media-src 'self'",
+            "manifest-src 'self'",
+            "worker-src 'self' blob:");
+        return Task.CompletedTask;
+    });
+
+    await next();
+});
 app.UseAntiforgery();
+app.MapStaticAssets();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

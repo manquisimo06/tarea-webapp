@@ -1,4 +1,5 @@
 ﻿<!DOCTYPE html>
+@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
 <html lang="en">
 
 <head>
@@ -9,7 +10,7 @@
     <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
     <link rel="stylesheet" href="@Assets["app.css"]" />
     <link rel="stylesheet" href="@Assets["WebEmpresa.styles.css"]" />
-    <ImportMap />
+    <ImportMap AdditionalAttributes="@ImportMapAttributes" />
     <link rel="icon" type="image/png" href="favicon.png" />
     <HeadOutlet />
 </head>
@@ -21,3 +22,10 @@
 </body>
 
 </html>
+
+@code {
+    private IReadOnlyDictionary<string, object> ImportMapAttributes =>
+        HttpContextAccessor.HttpContext?.Items["CspNonce"] is string nonce
+            ? new Dictionary<string, object> { ["nonce"] = nonce }
+            : new Dictionary<string, object>();
+}

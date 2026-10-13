@@ -1,838 +1,364 @@
-@page "/cliente"
-
-@using System.Net.Http.Json
-@using System.ComponentModel.DataAnnotations
-
+@page "/clientes"
 @rendermode InteractiveServer
-
+@using System.ComponentModel.DataAnnotations
 @inject HttpClient Http
-
-<PageTitle>Clientes</PageTitle>
-
-<div class="container mt-4">
-
-    <!-- ENCABEZADO -->
-    <div class="d-flex justify-content-between align-items-center mb-3">
-
-        <h2>Clientes</h2>
-
-        <button class="btn btn-primary"
-                @onclick="NuevoCliente">
-            + Nuevo
-        </button>
-
-    </div>
+@inject IJSRuntime JS
 
 
-    <!-- MENSAJES -->
-    @if (!string.IsNullOrEmpty(Mensaje))
-    {
-        <div class="alert @(EsError ? "alert-danger" : "alert-success")">
-            @Mensaje
-        </div>
-    }
+<h3 class="mb-4">Gestión de Clientes</h3>
 
-
-    <!-- CARGANDO -->
-    @if (Cargando)
-    {
-        <div class="text-center mt-4">
-            <div class="spinner-border" role="status">
-            </div>
-
-            <p class="mt-2">
-                Cargando clientes...
-            </p>
-        </div>
-    }
-    else
-    {
-
-        <!-- TABLA -->
-        <div class="table-responsive">
-
-            <table class="table table-bordered table-hover">
-
-                <thead class="table-dark">
-
-                    <tr>
-                        <th>CUI</th>
-                        <th>NIT</th>
-                        <th>Nombres</th>
-                        <th>Apellidos</th>
-                        <th>Dirección</th>
-                        <th>Teléfono</th>
-                        <th>Fecha nacimiento</th>
-                        <th>Acciones</th>
-                    </tr>
-
-                </thead>
-
-                <tbody>
-
-                    @if (ClientesPagina.Any())
-                    {
-
-                        @foreach (var cliente in ClientesPagina)
-                        {
-                            <tr>
-
-                                <td>
-                                    @cliente.CUI
-                                </td>
-
-                                <td>
-                                    @cliente.NIT
-                                </td>
-
-                                <td>
-                                    @cliente.Nombres
-                                </td>
-
-                                <td>
-                                    @cliente.Apellidos
-                                </td>
-
-                                <td>
-                                    @(string.IsNullOrWhiteSpace(cliente.Direccion)
-                                        ? "-"
-                                        : cliente.Direccion)
-                                </td>
-
-                                <td>
-                                    @(string.IsNullOrWhiteSpace(cliente.Telefono)
-                                        ? "-"
-                                        : cliente.Telefono)
-                                </td>
-
-                                <td>
-                                    @cliente.Fecha_Nacimiento.ToString("dd/MM/yyyy")
-                                </td>
-
-                                <td>
-
-                                    <button class="btn btn-warning btn-sm me-2"
-                                            @onclick="() => EditarCliente(cliente)">
-                                        Editar
-                                    </button>
-
-                                    <button class="btn btn-danger btn-sm"
-                                            @onclick="() => ConfirmarEliminar(cliente)">
-                                        Eliminar
-                                    </button>
-
-                                </td>
-
-                            </tr>
-                        }
-
-                    }
-                    else
-                    {
-
-                        <tr>
-
-                            <td colspan="8"
-                                class="text-center">
-
-                                No existen clientes registrados.
-
-                            </td>
-
-                        </tr>
-
-                    }
-
-                </tbody>
-
-            </table>
-
-        </div>
-
-
-        <!-- PAGINACIÓN -->
-        @if (TotalPaginas > 1)
-        {
-            <div class="d-flex justify-content-center align-items-center mt-3">
-
-                <button class="btn btn-secondary me-2"
-                        disabled="@(PaginaActual == 1)"
-                        @onclick="PaginaAnterior">
-                    Anterior
-                </button>
-
-                <span class="mx-3">
-                    Página @PaginaActual de @TotalPaginas
-                </span>
-
-                <button class="btn btn-secondary"
-                        disabled="@(PaginaActual == TotalPaginas)"
-                        @onclick="PaginaSiguiente">
-                    Siguiente
-                </button>
-
-            </div>
-        }
-
-    }
-
-</div>
-
-
-<!-- ===================================================== -->
-<!-- MODAL NUEVO / EDITAR -->
-<!-- ===================================================== -->
-
-@if (MostrarModal)
+@if (cargando)
 {
-    <div class="modal fade show d-block"
-         tabindex="-1"
-         style="background-color: rgba(0,0,0,0.5);">
+    <p><em>Cargando clientes...</em></p>
+}
+else
+{
+    <button class="btn btn-primary mb-3" @onclick="MostrarModalNuevo">
+        <i class="bi bi-plus-circle"></i> Nuevo
+    </button>
 
+    <table class="table table-striped table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>CUI</th>
+                <th>NIT</th>
+                <th>Nombres</th>
+                <th>Apellidos</th>
+                <th>Dirección</th>
+                <th>Teléfono</th>
+                <th>Fecha Nacimiento</th>
+                <th class="clientes-acciones">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (clientes == null || !clientes.Any())
+            {
+                <tr><td colspan="8" class="text-center">No hay clientes registrados.</td></tr>
+            }
+            else
+            {
+                @foreach (var c in clientes)
+                {
+                    <tr>
+                        <td>@c.CUI</td>
+                        <td>@c.NIT</td>
+                        <td>@c.Nombres</td>
+                        <td>@c.Apellidos</td>
+                        <td>@c.Direccion</td>
+                        <td>@c.Telefono</td>
+                        <td>@(c.FechaNacimiento?.ToString("dd/MM/yyyy"))</td>
+                        <td>
+                            <button class="btn btn-sm btn-warning me-1" @onclick="() => MostrarModalEditar(c)">
+                                Editar
+                            </button>
+                            <button class="btn btn-sm btn-danger" @onclick="() => ConfirmarEliminar(c)">
+                                Eliminar
+                            </button>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+}
+
+@* ===================== MODAL CREAR / EDITAR ===================== *@
+@if (mostrarModal)
+{
+    <div class="modal fade show d-block modal-overlay" tabindex="-1">
         <div class="modal-dialog modal-lg">
-
             <div class="modal-content">
-
-                <!-- HEADER -->
                 <div class="modal-header">
-
-                    <h5 class="modal-title">
-                        @(ModoEdicion ? "Editar Cliente" : "Nuevo Cliente")
-                    </h5>
-
-                    <button type="button"
-                            class="btn-close"
-                            @onclick="CerrarModal">
-                    </button>
-
+                    <h5 class="modal-title">@(esEdicion ? "Editar Cliente" : "Nuevo Cliente")</h5>
+                    <button type="button" class="btn-close" @onclick="CerrarModal"></button>
                 </div>
 
-
-                <!-- FORMULARIO -->
-                <EditForm Model="ClienteFormulario"
-                          OnValidSubmit="GuardarCliente">
-
+                <EditForm Model="clienteActual" OnValidSubmit="Guardar" FormName="formCliente">
                     <DataAnnotationsValidator />
+                    <ValidationSummary class="text-danger" />
 
                     <div class="modal-body">
+                        <div class="row g-3">
 
-                        <ValidationSummary />
+                            <div class="col-md-6">
+                                <label class="form-label">CUI</label>
+                                <InputText @bind-Value="clienteActual.CUI" class="form-control" maxlength="13" />
+                                <ValidationMessage For="() => clienteActual.CUI" class="text-danger" />
+                            </div>
 
+                            <div class="col-md-6">
+                                <label class="form-label">NIT</label>
+                                <InputText @bind-Value="clienteActual.NIT" class="form-control" maxlength="15" />
+                                <ValidationMessage For="() => clienteActual.NIT" class="text-danger" />
+                            </div>
 
-                        <!-- CUI -->
-                        <div class="mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Nombres</label>
+                                <InputText @bind-Value="clienteActual.Nombres" class="form-control" maxlength="100" />
+                                <ValidationMessage For="() => clienteActual.Nombres" class="text-danger" />
+                            </div>
 
-                            <label class="form-label">
-                                CUI
-                            </label>
+                            <div class="col-md-6">
+                                <label class="form-label">Apellidos</label>
+                                <InputText @bind-Value="clienteActual.Apellidos" class="form-control" maxlength="100" />
+                                <ValidationMessage For="() => clienteActual.Apellidos" class="text-danger" />
+                            </div>
 
-                            <InputText class="form-control"
-                                       @bind-Value="ClienteFormulario.CUI" />
+                            <div class="col-md-12">
+                                <label class="form-label">Dirección</label>
+                                <InputText @bind-Value="clienteActual.Direccion" class="form-control" maxlength="255" />
+                                <ValidationMessage For="() => clienteActual.Direccion" class="text-danger" />
+                            </div>
 
-                            <ValidationMessage For="@(() => ClienteFormulario.CUI)" />
+                            <div class="col-md-6">
+                                <label class="form-label">Teléfono</label>
+                                <InputText @bind-Value="clienteActual.Telefono" class="form-control" maxlength="20" />
+                                <ValidationMessage For="() => clienteActual.Telefono" class="text-danger" />
+                            </div>
 
-                        </div>
-
-
-                        <!-- NIT -->
-                        <div class="mb-3">
-
-                            <label class="form-label">
-                                NIT
-                            </label>
-
-                            <InputText class="form-control"
-                                       @bind-Value="ClienteFormulario.NIT" />
-
-                            <ValidationMessage For="@(() => ClienteFormulario.NIT)" />
-
-                        </div>
-
-
-                        <!-- NOMBRES -->
-                        <div class="mb-3">
-
-                            <label class="form-label">
-                                Nombres
-                            </label>
-
-                            <InputText class="form-control"
-                                       @bind-Value="ClienteFormulario.Nombres" />
-
-                            <ValidationMessage For="@(() => ClienteFormulario.Nombres)" />
+                            <div class="col-md-6">
+                                <label class="form-label">Fecha de Nacimiento</label>
+                                <InputDate @bind-Value="clienteActual.FechaNacimiento" class="form-control" />
+                                <ValidationMessage For="() => clienteActual.FechaNacimiento" class="text-danger" />
+                            </div>
 
                         </div>
-
-
-                        <!-- APELLIDOS -->
-                        <div class="mb-3">
-
-                            <label class="form-label">
-                                Apellidos
-                            </label>
-
-                            <InputText class="form-control"
-                                       @bind-Value="ClienteFormulario.Apellidos" />
-
-                            <ValidationMessage For="@(() => ClienteFormulario.Apellidos)" />
-
-                        </div>
-
-
-                        <!-- DIRECCIÓN -->
-                        <div class="mb-3">
-
-                            <label class="form-label">
-                                Dirección
-                            </label>
-
-                            <InputTextArea class="form-control"
-                                           @bind-Value="ClienteFormulario.Direccion" />
-
-                        </div>
-
-
-                        <!-- TELÉFONO -->
-                        <div class="mb-3">
-
-                            <label class="form-label">
-                                Teléfono
-                            </label>
-
-                            <InputText class="form-control"
-                                       @bind-Value="ClienteFormulario.Telefono" />
-
-                        </div>
-
-
-                        <!-- FECHA NACIMIENTO -->
-                        <div class="mb-3">
-
-                            <label class="form-label">
-                                Fecha de nacimiento
-                            </label>
-
-                            <InputDate class="form-control"
-                                       @bind-Value="ClienteFormulario.Fecha_Nacimiento" />
-
-                            <ValidationMessage For="@(() => ClienteFormulario.Fecha_Nacimiento)" />
-
-                        </div>
-
                     </div>
 
-
-                    <!-- FOOTER -->
                     <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CerrarModal">Cancelar</button>
 
-                        <button type="button"
-                                class="btn btn-secondary"
-                                @onclick="CerrarModal">
-
-                            Cancelar
-
-                        </button>
-
-
-                        @if (Guardando)
+                        @if (esEdicion)
                         {
-
-                            <button type="button"
-                                    class="btn btn-primary"
-                                    disabled>
-
-                                Guardando...
-
-                            </button>
-
+                            <button type="submit" class="btn btn-primary">Actualizar</button>
                         }
                         else
                         {
-
-                            <button type="submit"
-                                    class="btn btn-primary">
-
-                                @(ModoEdicion ? "Actualizar" : "Guardar")
-
-                            </button>
-
+                            <button type="submit" class="btn btn-success">Guardar</button>
                         }
-
                     </div>
-
                 </EditForm>
-
             </div>
-
         </div>
-
     </div>
 }
 
-
-<!-- ===================================================== -->
-<!-- MODAL CONFIRMAR ELIMINACIÓN -->
-<!-- ===================================================== -->
-
-@if (MostrarConfirmacion)
+@* ===================== MODAL CONFIRMAR ELIMINAR ===================== *@
+@if (mostrarConfirmacion)
 {
-    <div class="modal fade show d-block"
-         tabindex="-1"
-         style="background-color: rgba(0,0,0,0.5);">
-
+    <div class="modal fade show d-block modal-overlay" tabindex="-1">
         <div class="modal-dialog">
-
             <div class="modal-content">
-
-                <div class="modal-header">
-
-                    <h5 class="modal-title">
-                        Confirmar eliminación
-                    </h5>
-
-                    <button type="button"
-                            class="btn-close"
-                            @onclick="CancelarEliminar">
-                    </button>
-
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">Confirmar eliminación</h5>
                 </div>
-
-
                 <div class="modal-body">
-
-                    <p>
-                        ¿Está seguro que desea eliminar al cliente
-                        <strong>
-                            @ClienteEliminar?.Nombres
-                            @ClienteEliminar?.Apellidos
-                        </strong>
-                        ?
-                    </p>
-
-                    <p class="text-danger">
-                        Esta acción no se puede deshacer.
-                    </p>
-
+                    ¿Seguro que deseas eliminar al cliente
+                    <strong>@clienteActual.Nombres @clienteActual.Apellidos</strong>?
+                    Esta acción no se puede deshacer.
                 </div>
-
-
                 <div class="modal-footer">
-
-                    <button type="button"
-                            class="btn btn-secondary"
-                            @onclick="CancelarEliminar">
-
-                        No
-
-                    </button>
-
-                    <button type="button"
-                            class="btn btn-danger"
-                            @onclick="EliminarCliente">
-
-                        Sí, eliminar
-
-                    </button>
-
+                    <button class="btn btn-secondary" @onclick="() => mostrarConfirmacion = false">Cancelar</button>
+                    <button class="btn btn-danger" @onclick="Eliminar">Sí, eliminar</button>
                 </div>
-
             </div>
-
         </div>
-
     </div>
 }
-
 
 @code {
-
-    // =====================================================
-    // VARIABLES
-    // =====================================================
-
-    private List<ClienteDto> Clientes = new();
-
-    private ClienteDto ClienteFormulario = new();
-
-    private ClienteDto? ClienteEliminar;
-
-
-    private bool MostrarModal = false;
-
-    private bool MostrarConfirmacion = false;
-
-    private bool ModoEdicion = false;
-
-    private bool Cargando = false;
-
-    private bool Guardando = false;
-
-
-    private string Mensaje = "";
-
-    private bool EsError = false;
-
-
-    // =====================================================
-    // PAGINACIÓN
-    // =====================================================
-
-    private int PaginaActual = 1;
-
-    private int RegistrosPorPagina = 10;
-
-
-    private int TotalPaginas
+    private List<ClienteDTO>? clientes;
+    private ClienteDTO clienteActual = new();
+    private bool cargando = true;
+    private bool mostrarModal = false;
+    private bool mostrarConfirmacion = false;
+    private bool esEdicion = false;
+    private static readonly System.Text.Json.JsonSerializerOptions ApiJsonOptions = new()
     {
-        get
-        {
-            if (Clientes.Count == 0)
-                return 1;
-
-            return (int)Math.Ceiling(
-                Clientes.Count / (double)RegistrosPorPagina
-            );
-        }
-    }
-
-
-    private IEnumerable<ClienteDto> ClientesPagina
-    {
-        get
-        {
-            return Clientes
-                .Skip((PaginaActual - 1) * RegistrosPorPagina)
-                .Take(RegistrosPorPagina);
-        }
-    }
-
-
-    // =====================================================
-    // AL CARGAR LA PÁGINA
-    // =====================================================
+        PropertyNameCaseInsensitive = true
+    };
 
     protected override async Task OnInitializedAsync()
     {
         await CargarClientes();
     }
 
-
-    // =====================================================
-    // GET
-    // =====================================================
-
     private async Task CargarClientes()
-    {
+    /*{
+        cargando = true;
         try
         {
-            Cargando = true;
+            Console.WriteLine($"URL base: {Http.BaseAddress}");
+            Console.WriteLine($"URL solicitada: {new Uri(Http.BaseAddress!, "api/Clientes")}"); 
 
-            Mensaje = "";
-
-            var resultado =
-                await Http.GetFromJsonAsync<List<ClienteDto>>(
-                    "api/Clientes"
-                );
-
-            Clientes = resultado ?? new List<ClienteDto>();
-
-            PaginaActual = 1;
+            clientes = await Http.GetFromJsonAsync<List<ClienteDTO>>("api/Clientes");
         }
         catch (Exception ex)
         {
-            EsError = true;
+            Console.WriteLine($"Error al cargar: {ex.Message}");
+        }
+        cargando = false;
+    }*/
 
-            Mensaje =
-                "Error al cargar los clientes: " + ex.Message;
-        }
-        finally
-        {
-            Cargando = false;
-        }
+    
+{
+    cargando = true;
+
+    try
+    {
+        var url = new Uri(Http.BaseAddress!, "api/Clientes");
+
+        Console.WriteLine($"URL base: {Http.BaseAddress}");
+        Console.WriteLine($"URL solicitada: {url}");
+
+        var respuesta = await Http.GetAsync(url);
+
+        Console.WriteLine($"Código HTTP: {(int)respuesta.StatusCode}");
+        Console.WriteLine($"Estado: {respuesta.StatusCode}");
+
+        var contenido = await respuesta.Content.ReadAsStringAsync();
+        Console.WriteLine($"Respuesta: {contenido}");
+
+        respuesta.EnsureSuccessStatusCode();
+
+        clientes = System.Text.Json.JsonSerializer.Deserialize<List<ClienteDTO>>(
+            contenido,
+            ApiJsonOptions);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error: {ex}");
+    }
+    finally
+    {
+        cargando = false;
+    }
+}
+
+
+    private void MostrarModalNuevo()
+    {
+        clienteActual = new ClienteDTO();
+        esEdicion = false;
+        mostrarModal = true;
     }
 
-
-    // =====================================================
-    // NUEVO
-    // =====================================================
-
-    private void NuevoCliente()
+    private void MostrarModalEditar(ClienteDTO c)
     {
-        ModoEdicion = false;
-
-        ClienteFormulario = new ClienteDto
+        clienteActual = new ClienteDTO
         {
-            Fecha_Nacimiento = DateTime.Today
+            IdCliente = c.IdCliente,
+            CUI = c.CUI,
+            NIT = c.NIT,
+            Nombres = c.Nombres,
+            Apellidos = c.Apellidos,
+            Direccion = c.Direccion,
+            Telefono = c.Telefono,
+            FechaNacimiento = c.FechaNacimiento
         };
-
-        Mensaje = "";
-
-        MostrarModal = true;
+        esEdicion = true;
+        mostrarModal = true;
     }
-
-
-    // =====================================================
-    // EDITAR
-    // =====================================================
-
-    private void EditarCliente(ClienteDto cliente)
-    {
-        ModoEdicion = true;
-
-        ClienteFormulario = new ClienteDto
-        {
-            Id_cliente = cliente.Id_cliente,
-            CUI = cliente.CUI,
-            NIT = cliente.NIT,
-            Nombres = cliente.Nombres,
-            Apellidos = cliente.Apellidos,
-            Direccion = cliente.Direccion,
-            Telefono = cliente.Telefono,
-            Fecha_Nacimiento = cliente.Fecha_Nacimiento
-        };
-
-        Mensaje = "";
-
-        MostrarModal = true;
-    }
-
-
-    // =====================================================
-    // GUARDAR / ACTUALIZAR
-    // =====================================================
-
-    private async Task GuardarCliente()
-    {
-        try
-        {
-            Guardando = true;
-
-            Mensaje = "";
-
-
-            if (ModoEdicion)
-            {
-                // =========================================
-                // PUT
-                // =========================================
-
-                var respuesta =
-                    await Http.PutAsJsonAsync(
-                        $"api/Clientes/{ClienteFormulario.Id_cliente}",
-                        ClienteFormulario
-                    );
-
-
-                if (respuesta.IsSuccessStatusCode)
-                {
-                    MostrarModal = false;
-
-                    Mensaje =
-                        "Cliente actualizado correctamente.";
-
-                    EsError = false;
-
-                    await CargarClientes();
-                }
-                else
-                {
-                    EsError = true;
-
-                    Mensaje =
-                        $"Error al actualizar el cliente. Código: {(int)respuesta.StatusCode}";
-                }
-
-            }
-            else
-            {
-                // =========================================
-                // POST
-                // =========================================
-
-                var respuesta =
-                    await Http.PostAsJsonAsync(
-                        "api/Clientes",
-                        ClienteFormulario
-                    );
-
-
-                if (respuesta.IsSuccessStatusCode)
-                {
-                    MostrarModal = false;
-
-                    Mensaje =
-                        "Cliente guardado correctamente.";
-
-                    EsError = false;
-
-                    await CargarClientes();
-                }
-                else
-                {
-                    EsError = true;
-
-                    Mensaje =
-                        $"Error al guardar el cliente. Código: {(int)respuesta.StatusCode}";
-                }
-            }
-
-        }
-        catch (Exception ex)
-        {
-            EsError = true;
-
-            Mensaje =
-                "Error al comunicarse con la API: " + ex.Message;
-        }
-        finally
-        {
-            Guardando = false;
-        }
-    }
-
-
-    // =====================================================
-    // CERRAR MODAL
-    // =====================================================
 
     private void CerrarModal()
     {
-        MostrarModal = false;
+        mostrarModal = false;
+        clienteActual = new ClienteDTO();
     }
 
-
-    // =====================================================
-    // CONFIRMAR ELIMINACIÓN
-    // =====================================================
-
-    private void ConfirmarEliminar(ClienteDto cliente)
+    private async Task Guardar()
     {
-        ClienteEliminar = cliente;
-
-        MostrarConfirmacion = true;
-    }
-
-
-    // =====================================================
-    // CANCELAR ELIMINACIÓN
-    // =====================================================
-
-    private void CancelarEliminar()
-    {
-        MostrarConfirmacion = false;
-
-        ClienteEliminar = null;
-    }
-
-
-    // =====================================================
-    // DELETE
-    // =====================================================
-
-    private async Task EliminarCliente()
-    {
-        if (ClienteEliminar == null)
-            return;
-
-
         try
         {
-            var id = ClienteEliminar.Id_cliente;
-
-
-            var respuesta =
-                await Http.DeleteAsync(
-                    $"api/Clientes/{id}"
-                );
-
-
-            if (respuesta.IsSuccessStatusCode)
+            if (esEdicion)
             {
-                MostrarConfirmacion = false;
-
-                ClienteEliminar = null;
-
-                Mensaje =
-                    "Cliente eliminado correctamente.";
-
-                EsError = false;
-
-                await CargarClientes();
+                var resp = await Http.PutAsJsonAsync($"api/Clientes/{clienteActual.IdCliente}", clienteActual, ApiJsonOptions);
+                if (!resp.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"Error PUT: {resp.StatusCode}");
+                }
             }
             else
             {
-                EsError = true;
-
-                Mensaje =
-                    $"Error al eliminar el cliente. Código: {(int)respuesta.StatusCode}";
+                var resp = await Http.PostAsJsonAsync("api/Clientes", clienteActual, ApiJsonOptions);
+                if (!resp.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"Error POST: {resp.StatusCode}");
+                }
             }
 
+            CerrarModal();
+            await CargarClientes();
         }
         catch (Exception ex)
         {
-            EsError = true;
-
-            Mensaje =
-                "Error al comunicarse con la API: " + ex.Message;
+            Console.WriteLine($"Error al guardar: {ex.Message}");
         }
     }
 
-
-    // =====================================================
-    // PAGINACIÓN
-    // =====================================================
-
-    private void PaginaAnterior()
+    private void ConfirmarEliminar(ClienteDTO c)
     {
-        if (PaginaActual > 1)
+        clienteActual = c;
+        mostrarConfirmacion = true;
+    }
+
+    private async Task Eliminar()
+    {
+        try
         {
-            PaginaActual--;
+            var resp = await Http.DeleteAsync($"api/Clientes/{clienteActual.IdCliente}");
+            if (!resp.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"Error DELETE: {resp.StatusCode}");
+            }
         }
-    }
-
-
-    private void PaginaSiguiente()
-    {
-        if (PaginaActual < TotalPaginas)
+        catch (Exception ex)
         {
-            PaginaActual++;
+            Console.WriteLine($"Error al eliminar: {ex.Message}");
         }
+        mostrarConfirmacion = false;
+        await CargarClientes();
     }
 
-
-    // =====================================================
-    // MODELO PARA EL FRONT
-    // =====================================================
-
-    public class ClienteDto
+    // ======= DTO con DataAnnotations para validaciones Bootstrap =======
+    public class ClienteDTO
     {
-        public int Id_cliente { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("id_cliente")]
+        public int IdCliente { get; set; }
 
-
+        [System.Text.Json.Serialization.JsonPropertyName("cui")]
         [Required(ErrorMessage = "El CUI es obligatorio.")]
+        [StringLength(13, MinimumLength = 13, ErrorMessage = "El CUI debe tener 13 caracteres.")]
         public string CUI { get; set; } = string.Empty;
 
-
+        [System.Text.Json.Serialization.JsonPropertyName("nit")]
         [Required(ErrorMessage = "El NIT es obligatorio.")]
+        [StringLength(15, ErrorMessage = "El NIT no debe exceder 15 caracteres.")]
         public string NIT { get; set; } = string.Empty;
 
-
-        [Required(ErrorMessage = "Los nombres son obligatorios.")]
+        [System.Text.Json.Serialization.JsonPropertyName("nombres")]
+        [Required(ErrorMessage = "El nombre es obligatorio.")]
+        [StringLength(100, ErrorMessage = "Máximo 100 caracteres.")]
         public string Nombres { get; set; } = string.Empty;
 
-
-        [Required(ErrorMessage = "Los apellidos son obligatorios.")]
+        [System.Text.Json.Serialization.JsonPropertyName("apellidos")]
+        [Required(ErrorMessage = "El apellido es obligatorio.")]
+        [StringLength(100, ErrorMessage = "Máximo 100 caracteres.")]
         public string Apellidos { get; set; } = string.Empty;
 
+        [System.Text.Json.Serialization.JsonPropertyName("direccion")]
+        [Required(ErrorMessage = "La dirección es obligatoria.")]
+        [StringLength(255, ErrorMessage = "Máximo 255 caracteres.")]
+        public string Direccion { get; set; } = string.Empty;
 
-        public string? Direccion { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("telefono")]
+        [Required(ErrorMessage = "El teléfono es obligatorio.")]
+        [StringLength(20, ErrorMessage = "Máximo 20 caracteres.")]
+        [RegularExpression(@"^[0-9]+$", ErrorMessage = "Solo se permiten números.")]
+        public string Telefono { get; set; } = string.Empty;
 
-
-        public string? Telefono { get; set; }
-
-
+        [System.Text.Json.Serialization.JsonPropertyName("fecha_nacimiento")]
         [Required(ErrorMessage = "La fecha de nacimiento es obligatoria.")]
-        public DateTime Fecha_Nacimiento { get; set; }
+        public DateTime? FechaNacimiento { get; set; }
     }
-
 }

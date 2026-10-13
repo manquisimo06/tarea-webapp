@@ -1,0 +1,52 @@
+INFORME DE REVISION ZAP
+=======================
+
+Reporte revisado: C:\Users\Kitsune\Documents\Informe_ZAP_Antes.html
+Sitio escaneado por ZAP: http://localhost:5253
+Resumen del reporte original: 4 alertas de riesgo medio, 1 de riesgo bajo y 3 informativas.
+
+CORREGIDO
+---------
+
+1. CSP: Directiva Wildcard (riesgo medio)
+   Se reemplazo la politica incompleta por una Content-Security-Policy con directivas explicitas y fuentes limitadas. Se conservaron frame-ancestors 'self' y X-Frame-Options SAMEORIGIN. La politica incluye default-src, base-uri, object-src, form-action, script-src, style-src, img-src, connect-src, frame-src, font-src, media-src, manifest-src y worker-src.
+
+2. CSP: Failure to Define Directive with No Fallback (riesgo medio)
+   Se agrego form-action 'self', que no hereda su restriccion desde default-src. Tambien se declararon las demas directivas que ZAP marco como ausentes o demasiado amplias.
+
+3. CSP: script-src unsafe-inline (riesgo medio)
+   Se usa un nonce aleatorio por respuesta para el ImportMap de Blazor. script-src permite scripts del mismo origen y ese nonce; script-src-attr queda en none. Se retiro el manejador JavaScript inline del menu y se reemplazo por un evento Blazor.
+
+4. CSP: style-src unsafe-inline (riesgo medio)
+   style-src queda limitado al mismo origen y style-src-attr en none. Los estilos inline de la pagina Clientes se movieron a Components/Pages/Cliente.razor.css. Se verifico que el fondo del modal sigue aplicandose correctamente.
+
+5. Falta encabezado X-Content-Type-Options (riesgo bajo)
+   Se agrega X-Content-Type-Options: nosniff a las respuestas, incluyendo archivos estaticos. Se comprobo en el favicon, que responde 200 con Content-Type image/png y nosniff.
+
+NO REQUERIA CORRECCION
+----------------------
+
+6. Aplicacion Web Moderna (informativa)
+   Es una observacion de ZAP sobre la tecnologia de la aplicacion, no una vulnerabilidad. No se cambio nada.
+
+7. Divulgacion de informacion - Comentarios sospechosos (informativa)
+   ZAP detecto la palabra "user" en un comentario generico del modulo de reconexion. No expone secretos ni datos internos utiles para un atacante; se conservo el comentario.
+
+8. Respuesta de Gestion de Sesion Identificada (informativa)
+   Corresponde a la cookie antifalsificacion de ASP.NET Core. Es esperada para la proteccion CSRF; el reporte muestra HttpOnly y SameSite=Strict. No se elimino ni se cambio la cookie.
+
+CAMBIOS ANTERIORES NO DERIVADOS DE ZAP
+---------------------------------------
+
+Se mantuvieron las correcciones previas de la URL base de la API de Clientes, el mapeo de sus propiedades JSON snake_case y la ruta del enlace del menu a /clientes. No son hallazgos de este reporte ZAP.
+
+VERIFICACION Y PENDIENTES
+-------------------------
+
+- dotnet build --no-restore --output "%TEMP%\WebEmpresa-zap-check" -p:UseAppHost=false: correcto.
+- Se verifico que el nonce de script-src coincide con el atributo nonce del ImportMap en la misma respuesta.
+- Se verificaron form-action, nosniff, ausencia de unsafe-inline y ausencia de atributos style y onclick inline en el HTML servido.
+- La lista de Clientes carga y el boton Nuevo abre el formulario bajo la CSP.
+- No se ejecuto un nuevo escaneo completo de ZAP; los resultados deben confirmarse con un nuevo reporte despues de reiniciar dotnet watch.
+- dotnet watch utiliza un WebSocket auxiliar en un puerto local dinamico para Browser Refresh. La CSP estricta no autoriza puertos wildcard, por lo que ese auxiliar puede registrar un bloqueo en la consola; la interactividad de Blazor se comprobo funcional. No se amplio la politica a localhost:* para no reintroducir una fuente wildcard.
+- El escaneo original fue HTTP en localhost. Para una evaluacion de despliegue, repetirlo tambien contra el entorno HTTPS de produccion.
